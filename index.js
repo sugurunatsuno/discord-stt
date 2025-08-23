@@ -59,6 +59,8 @@ const commands = [
   new SlashCommandBuilder().setName('leave').setDescription('VCから退出'),
   new SlashCommandBuilder().setName('start').setDescription('録音開始'),
   new SlashCommandBuilder().setName('stop').setDescription('録音停止'),
+  new SlashCommandBuilder().setName('status').setDescription('録音状況を表示'),
+  new SlashCommandBuilder().setName('ping').setDescription('応答テスト'),
 ].map(c => c.toJSON());
 
 client.once('clientReady', async () => {
@@ -130,6 +132,18 @@ client.on('interactionCreate', async (i) => {
     } else if (i.commandName === 'stop') {
       hardStop(gid);
       i.reply('録音を完全に停止しました！（リスナー解除・処理中断）');
+
+    } else if (i.commandName === 'status') {
+      const conn = getVoiceConnection(gid);
+      const state = recordingState.get(gid);
+      let msg;
+      if (!conn) msg = 'ボイスチャンネルに未参加です。';
+      else if (state?.isRecording) msg = '参加中・録音中です。';
+      else msg = '参加中ですが録音は停止しています。';
+      i.reply(msg);
+
+    } else if (i.commandName === 'ping') {
+      i.reply('Pong!');
     }
   } catch (e) {
     console.error(e);

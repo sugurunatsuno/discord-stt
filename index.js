@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { PassThrough } from 'node:stream';
 import ffmpegPath from 'ffmpeg-static';
+import { normalizeText } from './normalizeText.js';
 
 const token = (process.env.DISCORD_TOKEN ?? '').trim();
 if (!token || token.split('.').length !== 3) {
@@ -420,14 +421,6 @@ async function probeDuration(file, chunkId) {
   return null;
 }
 
-function normalizeText(s) {
-  if (!s) return '';
-  return s
-    .replace(/[\s\u3000]+/g, ' ')
-    .replace(/[。、．，・!！?？…—\-\(\)\[\]{}"'「」『』:：;；、｡､・〜~^]/g, '')
-    .trim()
-    .toLowerCase();
-}
 
 // 安全にWAV削除
 function safeDeleteWav(wavPath, chunkId, reason) {

@@ -17,9 +17,13 @@ if (!token || token.split('.').length !== 3) {
 const TEXT_CHANNEL_ID = process.env.DISCORD_TEXT_CHANNEL_ID || '';
 const DEBUG = process.env.DEBUG_AUDIO === '1';
 const LOG_LEVEL = (process.env.LOG_LEVEL || 'info').toLowerCase(); // 'debug' | 'info' | 'warn' | 'error'
+const LOG_FILE = process.env.LOG_FILE || 'app.log';
 const MIN_DUR_SEC = parseFloat(process.env.MIN_DUR_SEC || '0.6');
 const MIN_TEXT_CHARS = parseInt(process.env.MIN_TEXT_CHARS || '3', 10);
 const DEDUP_WINDOW_MS = parseInt(process.env.DEDUP_WINDOW_MS || '30000', 10);
+
+const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
+process.on('exit', () => logStream.end());
 
 // ★ 削除ポリシー
 const DELETE_WAV = process.env.DELETE_WAV === '1';                 // STT後にWAV削除
@@ -38,6 +42,7 @@ function log(level, msg, meta = {}) {
   const line = `[${now()}] [${level.toUpperCase()}] ${msg}`;
   if (Object.keys(meta).length) console.log(line, JSON.stringify(meta));
   else console.log(line);
+  logStream.write(line + (Object.keys(meta).length ? ' ' + JSON.stringify(meta) : '') + '\n');
 }
 
 if (!TEXT_CHANNEL_ID) {

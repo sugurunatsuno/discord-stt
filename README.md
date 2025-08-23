@@ -10,7 +10,7 @@
 
 ## セットアップ
 1. `.env.template` を `.env` にコピーして必要な値を設定します。
-2. Python 仮想環境 `.venv` を作成して有効化し、`faster-whisper` など必要なパッケージをインストールします。
+2. Python 仮想環境 `.venv` を作成して有効化し、`pip install -r requirements.txt` で依存パッケージをインストールします。
 3. 初回は `./run.sh --install` で Node.js と Python の依存関係をインストールします。
 4. ボットを起動するには `./run.sh` を実行します。
 

@@ -3,7 +3,7 @@
 # 使い方:
 #   chmod +x run.sh
 #   ./run.sh            # 起動
-#   ./run.sh --install  # 依存を自動インストール（npm/pip）
+#   ./run.sh --install  # 依存を自動インストール（npm/pip install -r requirements.txt）
 
 set -euo pipefail
 

@@ -27,7 +27,7 @@ const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
 process.on('exit', () => logStream.end());
 
 // ★ 削除ポリシー
-const DELETE_WAV = process.env.DELETE_WAV === '1';                 // STT後にWAV削除
+const DELETE_WAV = process.env.DELETE_WAV === '1';                 // スキップ/エラー時にWAV削除 (STT成功時はstt.pyが削除)
 const DELETE_WAV_ON_SKIP = (process.env.DELETE_WAV_ON_SKIP ?? '1') === '1'; // スキップ時も削除
 const KEEP_WAV_ON_ERROR = (process.env.KEEP_WAV_ON_ERROR ?? '1') === '1';   // エラー時は保持
 
@@ -338,8 +338,7 @@ async function runNextSTT() {
       log('warn', 'no channelId; skipping post', { chunkId });
     }
 
-    // ★ STT成功（投稿の成否は問わず）→ WAV削除
-    if (DELETE_WAV) safeDeleteWav(file, chunkId, 'stt-done');
+    // ★ STT成功時のWAV削除は stt.py で実施
 
   } catch (e) {
     log('error', 'STT job failed', { chunkId, err: String(e) });

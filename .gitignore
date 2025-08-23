@@ -1,0 +1,107 @@
+# ========== OS / Editor ==========
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# ========== Node.js ==========
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm/
+.pnp.*
+.npm/
+.nvm/
+.eslintcache
+.stylelintcache
+.cache/
+.parcel-cache/
+.turbo/
+.next/
+out/
+.nuxt/
+.output/
+.svelte-kit/
+.vite/
+dist/
+build/
+coverage/
+.nyc_output/
+.docusaurus/
+storybook-static/
+.storybook-out/
+.vercel/
+.netlify/
+*.tsbuildinfo
+.jest/
+
+# Playwright / Cypress artifacts
+playwright-report/
+test-results/
+cypress/screenshots/
+cypress/videos/
+
+# ========== Python ==========
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Test & type check caches
+.pytest_cache/
+.mypy_cache/
+.pytype/
+.pyre/
+.dmypy.json
+
+# Coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Packaging / builds
+build/
+dist/
+.eggs/
+*.egg
+*.egg-info/
+*.dist-info
+develop-eggs/
+pip-wheel-metadata/
+.tox/
+.nox/
+
+# Virtual envs
+.venv/
+.venv*/
+venv/
+env/
+ENV/
+.conda/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# ========== Env / Secrets (Node & Python 共通) ==========
+.env
+.env.*
+!.env.example
+!.env.template
+
+# ========== Misc ==========
+logs/
+*.log
+tmp/
+temp/
+*.db
+*.sqlite3

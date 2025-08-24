@@ -22,6 +22,10 @@ const LOG_FILE = process.env.LOG_FILE || 'app.log';
 const MIN_DUR_SEC = parseFloat(process.env.MIN_DUR_SEC || '0.6');
 const MIN_TEXT_CHARS = parseInt(process.env.MIN_TEXT_CHARS || '3', 10);
 const DEDUP_WINDOW_MS = parseInt(process.env.DEDUP_WINDOW_MS || '30000', 10);
+const IGNORE_PHRASES = [
+  normalizeText('ご視聴ありがとうございました'),
+  ...(process.env.STT_IGNORE_LIST ? process.env.STT_IGNORE_LIST.split(',').map(s => normalizeText(s.trim())).filter(Boolean) : [])
+];
 
 const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
 process.on('exit', () => logStream.end());
@@ -302,6 +306,19 @@ async function runNextSTT() {
     const text = await runSTT(file, chunkId);
     const normalized = normalizeText(text);
     log('debug', 'STT result', { chunkId, len: text.length, normLen: normalized.length });
+
+    if (IGNORE_PHRASES.includes(normalized)) {
+      log('info', 'skip: ignore phrase', { chunkId, text });
+      if (DELETE_WAV && DELETE_WAV_ON_SKIP) safeDeleteWav(file, chunkId, 'ignored-phrase');
+      return;
+    }
+
+    const tokens = normalized.split(' ').filter(Boolean);
+    if (tokens.length >= 3 && tokens.every(t => t === tokens[0])) {
+      log('info', 'skip: repeated phrase', { chunkId, token: tokens[0], count: tokens.length });
+      if (DELETE_WAV && DELETE_WAV_ON_SKIP) safeDeleteWav(file, chunkId, 'repeat-phrase');
+      return;
+    }
 
     // 無音/短文スキップ
     if (!normalized || normalized.length < MIN_TEXT_CHARS) {

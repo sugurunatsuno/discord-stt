@@ -56,10 +56,6 @@ def main():
         try:
             out = transcribe(infile)
             print(json.dumps(out, ensure_ascii=False))
-            try:
-                os.remove(infile)
-            except OSError:
-                pass
             return
         except Exception as e:
             last_err = str(e)

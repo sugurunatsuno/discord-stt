@@ -1,4 +1,4 @@
-// index.js (verbose logging + ffprobe fallback + delete WAV after STT)
+// index.js (verbose logging + ffprobe fallback + attach MP3 before deleting)
 import 'dotenv/config';
 import { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder } from 'discord.js';
 import { joinVoiceChannel, getVoiceConnection, EndBehaviorType, entersState, VoiceConnectionStatus } from '@discordjs/voice';
@@ -322,23 +322,35 @@ async function runNextSTT() {
     recentTextCache.set(key, { text: normalized, ts: nowMs });
 
     // 投稿（チャンネル未設定でもSTT自体は成功なので削除対象にできる）
-    if (channelId) {
-      const chan = await client.channels.fetch(channelId).catch((e) => {
-        log('error', 'fetch channel failed', { chunkId, err: String(e) });
-        return null;
-      });
-      if (chan && chan.isTextBased()) {
-        const jst = now();
-        await chan.send(`${jst} JST\n🎙️ **${user}**\n> ${text.replace(/\n+/g, ' ')}`);
-        log('info', 'posted to discord', { chunkId, channelId });
+    let mp3File = null;
+    try {
+      if (channelId) {
+        const chan = await client.channels.fetch(channelId).catch((e) => {
+          log('error', 'fetch channel failed', { chunkId, err: String(e) });
+          return null;
+        });
+        if (chan && chan.isTextBased()) {
+          mp3File = await convertToMp3(file, chunkId);
+          const jst = now();
+          const content = `${jst} JST\\n🎙️ **${user}**\\n> ${text.replace(/\\n+/g, ' ')}`;
+          const payload = mp3File ? { content, files: [{ attachment: mp3File }] } : { content };
+          await chan.send(payload);
+          log('info', 'posted to discord', { chunkId, channelId, attached: !!mp3File });
+        } else {
+          log('warn', 'channel not text-based or null; skipping post', { chunkId, channelId });
+        }
       } else {
-        log('warn', 'channel not text-based or null; skipping post', { chunkId, channelId });
+        log('warn', 'no channelId; skipping post', { chunkId });
       }
-    } else {
-      log('warn', 'no channelId; skipping post', { chunkId });
+    } finally {
+      if (DELETE_WAV) {
+        safeDeleteWav(file, chunkId, 'stt-done');
+        if (mp3File) {
+          try { fs.unlinkSync(mp3File); log('debug', 'mp3 deleted', { chunkId, mp3: mp3File }); }
+          catch (e) { log('warn', 'mp3 delete failed', { chunkId, err: String(e) }); }
+        }
+      }
     }
-
-    // ★ STT成功時のWAV削除は stt.py で実施
 
   } catch (e) {
     log('error', 'STT job failed', { chunkId, err: String(e) });
@@ -434,6 +446,26 @@ async function probeDuration(file, chunkId) {
   return null;
 }
 
+
+async function convertToMp3(wavPath, chunkId) {
+  const mp3Path = wavPath.replace(/\.wav$/i, '.mp3');
+  return new Promise((resolve) => {
+    const p = spawn(ffmpegBin, ['-y', '-i', wavPath, mp3Path]);
+    p.on('close', (code) => {
+      if (code === 0) resolve(mp3Path);
+      else {
+        log('warn', 'mp3 convert failed', { chunkId, code });
+        try { fs.unlinkSync(mp3Path); } catch {}
+        resolve(null);
+      }
+    });
+    p.on('error', (err) => {
+      log('warn', 'mp3 convert spawn error', { chunkId, err: String(err) });
+      try { fs.unlinkSync(mp3Path); } catch {}
+      resolve(null);
+    });
+  });
+}
 
 // 安全にWAV削除
 function safeDeleteWav(wavPath, chunkId, reason) {

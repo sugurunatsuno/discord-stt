@@ -1,6 +1,6 @@
 // index.js (verbose logging + ffprobe fallback + attach MP3 before deleting)
 import 'dotenv/config';
-import { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder, ChannelType } from 'discord.js';
 import { joinVoiceChannel, getVoiceConnection, EndBehaviorType, entersState, VoiceConnectionStatus } from '@discordjs/voice';
 import { spawn, execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -15,7 +15,6 @@ if (!token || token.split('.').length !== 3) {
   process.exit(1);
 }
 
-const TEXT_CHANNEL_ID = process.env.DISCORD_TEXT_CHANNEL_ID || '';
 const DEBUG = process.env.DEBUG_AUDIO === '1';
 const LOG_LEVEL = (process.env.LOG_LEVEL || 'info').toLowerCase(); // 'debug' | 'info' | 'warn' | 'error'
 const LOG_FILE = process.env.LOG_FILE || 'app.log';
@@ -50,9 +49,6 @@ function log(level, msg, meta = {}) {
   logStream.write(line + (Object.keys(meta).length ? ' ' + JSON.stringify(meta) : '') + '\n');
 }
 
-if (!TEXT_CHANNEL_ID) {
-  log('warn', 'DISCORD_TEXT_CHANNEL_ID not set. Will SKIP posting to Discord.');
-}
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
@@ -62,7 +58,15 @@ const client = new Client({
 const commands = [
   new SlashCommandBuilder().setName('join').setDescription('今いるVCに参加'),
   new SlashCommandBuilder().setName('leave').setDescription('VCから退出'),
-  new SlashCommandBuilder().setName('start').setDescription('録音開始'),
+  new SlashCommandBuilder()
+    .setName('start')
+    .setDescription('録音開始')
+    .addChannelOption(o =>
+      o.setName('text')
+        .setDescription('文字起こし結果を投稿するテキストチャンネル')
+        .addChannelTypes(ChannelType.GuildText)
+        .setRequired(true)
+    ),
   new SlashCommandBuilder().setName('stop').setDescription('録音停止'),
   new SlashCommandBuilder().setName('status').setDescription('録音状況を表示'),
   new SlashCommandBuilder().setName('ping').setDescription('応答テスト'),
@@ -132,7 +136,9 @@ client.on('interactionCreate', async (i) => {
       if (!conn) return i.reply({ content: '`/join` で先に参加してください。', ephemeral: true });
       const state = recordingState.get(gid);
       if (state?.isRecording) return i.reply({ content: 'すでに録音中です。`/stop` で停止してください。', ephemeral: true });
-      startRecording(i);
+      const chan = i.options.getChannel('text');
+      if (!chan || !chan.isTextBased()) return i.reply({ content: 'テキストチャンネルを指定してください。', ephemeral: true });
+      startRecording(i, chan.id);
 
     } else if (i.commandName === 'stop') {
       hardStop(gid);
@@ -157,7 +163,7 @@ client.on('interactionCreate', async (i) => {
   }
 });
 
-function startRecording(i) {
+function startRecording(i, textChannelId) {
   const gid = i.guild.id;
   const conn = getVoiceConnection(gid);
   const receiver = conn.receiver;
@@ -170,7 +176,7 @@ function startRecording(i) {
   }
 
   const subs = new Map();
-  const state = { receiver, subs, isRecording: true, onSpeakingStart: null };
+  const state = { receiver, subs, isRecording: true, onSpeakingStart: null, textChannelId };
   recordingState.set(gid, state);
 
   state.onSpeakingStart = async (userId) => {
@@ -233,7 +239,7 @@ function startRecording(i) {
           log('warn', 'deleted tiny file (<200B)', { chunkId });
           return;
         }
-        enqueueSTT({ file: filename, user: who, chunkId, channelId: TEXT_CHANNEL_ID });
+        enqueueSTT({ file: filename, user: who, chunkId, channelId: state.textChannelId });
       } catch (e) {
         log('error', 'file stat failed', { chunkId, err: String(e) });
       }
